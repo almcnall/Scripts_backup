@@ -8,7 +8,7 @@ pro readin_CHIRPRS_NOAH_Qs
 ;.compile /home/almcnall/Scripts/scripts_idl/mve.pro
 .compile /home/almcnall/Scripts/scripts_idl/get_domain01.pro
 
-startyr = 1982 ;start with 1982 since no data in 1981
+startyr = 1990 ;start with 1982 since no data in 1981
 endyr = 2017
 nyrs = endyr-startyr+1
 
@@ -66,4 +66,4 @@ RO = Qsuf+Qsub
 ;RO_CHIRPS01 = RO
 delvar, Qsuf, Qsub, qs, qsb
 
-RO_annual = mean(RO_CHIRPS01, dimension = 3, /nan) & help, RO_annual
+RO_annual = mean(RO, dimension = 3, /nan) & help, RO_annual

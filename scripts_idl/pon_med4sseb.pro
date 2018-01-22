@@ -6,8 +6,8 @@ pro PON_MED4SSEB
 ; 2/10/17 save these outputs, since i do use the same median everytime...benefit was all three regions...
 ; 08/30/17 -add lines for multi-month median AND add in ESP outlook capabilities
 
-;;;;;;;;for multimonth...sum first if only read in spp. months;;;
 help, evap, et
+;;;;;;;;for multimonth...sum first if only read in spp. months;;;
 evap = total(evap,3)
 et = total(et,3)
 
@@ -31,13 +31,14 @@ PON_evap = (esp_may2sept/evap_median)*100 & help, pon_evap
 PON_evap(where(PON_evap ge 250)) = 250
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+;help, evap, et
+;evapE = Evap
+;delvar, Evap
 help, evap, et
-evapE = Evap
-delvar, Evap
-help, evapE, et
 ;help,  evapE, evapS, evapw
 
-params = get_domain01('EA')
+params = get_domain01('SA')
 
 eNX = params[0]
 eNY = params[1]
@@ -45,12 +46,12 @@ eNY = params[1]
 ;take the median 2003-2015 (now 12 yrs), was 2003-2013 (10yrs)
 ;for monthly (not seasonal) analysis
 ;PON for NOAH
-medEVAPe = MEDIAN(EvapE[*,*,*,0:11], dimension=4) & help, medEVAPe
-medEVAPcubeE = REBIN(medEVAPe,eNX, eNY, NMOS, NYRS)
+medEVAP = MEDIAN(Evap[*,*,*,0:11], dimension=4) & help, medEVAP
+medEVAPcube = REBIN(medEVAP,eNX, eNY, NMOS, NYRS)
 ;then compute percent of this median for all yrs...
-PONe = (Evape/MEDevapcubeE)*100
-PONe(where(PONe gt 250)) = 250
-delvar, medEvape, medEVAPcubeE
+PON = (Evap/MEDevapcube)*100
+PON(where(PON gt 250)) = 250
+delvar, medEvap, medEVAPcube
 
 ;medEVAPs = MEDIAN(EvapS[*,*,*,0:9], dimension=4) & help, medEVAPs
 ;medEVAPcubeS = REBIN(medEVAPs,sNX, sNY, NMOS, NYRS)
@@ -70,7 +71,7 @@ delvar, medEvape, medEVAPcubeE
 NMOS = n_elements(ET[0,0,*,0]) & print, nmos
 NYRS = n_elements(ET[0,0,0,*]) & print, nyrs
 
-medETe = MEDIAN(ET[*,*,*,0:9], dimension=4) & help, medETe
+medETe = MEDIAN(ET[*,*,*,0:11], dimension=4) & help, medETe
 medETcubeE = REBIN(medETe,NX, NY, NMOS, NYRS)
 ;then compute percent of this median for all yrs...
 PONe_SSEB = (ET/medETcubeE)*100

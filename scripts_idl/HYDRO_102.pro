@@ -6,6 +6,8 @@
 ; 6/06/17 check the water balance at Thika
 ; 7/06/17 add extract data by HYMAP basin (readin_HYMAP_basin.pro)
 ; 9/14/17 update with the basins from Kris (do this in readin_HYMAP_basin.pro)
+; 10/03/17 get energy balance figures for southern africa
+; 10/13/17 (1) water balance figures (2) evap eval.
 
 ;ET=SSEB and which is Evap=Noah
 HELP, rain, Evap, ET, gvf, eacube01, RO
@@ -20,25 +22,25 @@ help, mana_mask
 ;zmask396 = rebin(zamb_mask, nx, ny, 396)
 ;p1 = plot(mean(mean(sm01_v*zmask396,dimension=1,/nan),dimension=1,/nan), /overplot, 'b')
 ;z_sm01_ts = mean(mean(sm01_v*zmask396,dimension=1,/nan),dimension=1,/nan) & help, z_sm01_ts
-nx = 295
-ny = 348
+;nx = 294
+;ny = 348
 
 ;;plot the rainfall and ET time series for the blue nile basin
 help, rain, evap, ro_chirps01, ro, et, eacube01
-mask432 = rebin(bnile_mask, nx, ny, 432)
-mask432 = rebin(awash_mask, nx, ny, 432)
-mask432 = rebin(rufi_mask, nx, ny, 432)
-mask432 = rebin(utana_mask, nx, ny, 432)
-mask432 = rebin(jsb_mask, nx, ny, 432)
-mask432 = rebin(luku_mask, nx, ny, 432)
+mask432 = rebin(bnile_mask, nx, ny, nmos*nyrs)
+mask432 = rebin(awash_mask, nx, ny, nmos*nyrs)
+mask432 = rebin(rufi_mask, nx, ny, nmos*nyrs)
+mask432 = rebin(utana_mask, nx, ny, nmos*nyrs)
+mask432 = rebin(jsb_mask, nx, ny, nmos*nyrs)
+mask432 = rebin(luku_mask, nx, ny, nmos*nyrs)
 
 
-mask432 = rebin(orng_mask, nx, ny, 432)
-mask432 = rebin(zamb_mask, nx, ny, 432)
-mask432 = rebin(limp_mask, nx, ny, 432)
-mask432 = rebin(pag_mask, nx, ny, 432)
-mask432 = rebin(inco_mask, nx, ny, 432)
-mask432 = rebin(mana_mask, nx, ny, 432)
+mask432 = rebin(orng_mask, nx, ny, nmos*nyrs)
+mask432 = rebin(zamb_mask, nx, ny, nmos*nyrs)
+mask432 = rebin(limp_mask, nx, ny, nmos*nyrs)
+mask432 = rebin(pag_mask, nx, ny, nmos*nyrs)
+mask432 = rebin(inco_mask, nx, ny, nmos*nyrs)
+mask432 = rebin(mana_mask, nx, ny, nmos*nyrs)
 
 
 rain_v = reform(rain,nx, ny, nmos*nyrs) & help, rain_v
@@ -48,10 +50,6 @@ rain_v = reform(rain,nx, ny, nmos*nyrs) & help, rain_v
 
 rain_mon = mean(mean(mean(rain*mask432,dimension=1,/nan),dimension=1,/nan), dimension=2,/nan)*86400*30 & help, rain_mon
 ro_mon = mean(mean(mean(ro*mask432,dimension=1,/nan),dimension=1,/nan), dimension=2,/nan)*86400*30 & help, ro_mon
-
-evap_mon = mean(mean(mean(evap[*,*,*,*]*mask432,dimension=1,/nan),dimension=1,/nan), dimension=2,/nan)*86400*30 & help, evap_mon
-et_mon = mean(mean(mean(et[*,*,*,0:13]*mask432,dimension=1,/nan),dimension=1,/nan), dimension=2) & help, et_mon
-;alexi_mon = mean(mean(mean(eacube01*mask432,dimension=1,/nan),dimension=1,/nan), dimension=2) & help, alexi_mon
 
 gvf_mon =  mean(mean(gvf*mask432,dimension=1,/nan),dimension=1,/nan) & help, gvf_mon
 
@@ -68,10 +66,26 @@ ro_ts_cap(where(ro_ts_cap gt 12))=12
 ro_ts_cap_cube_avg = mean(reform(ro_ts_cap,12,36),dimension=2,/nan) & help, ro_ts_cap_cube_avg
 ro_ts_anom = ro_ts_cap-reform(rebin(ro_mon,12,36),12*36) & help, ro_ts_anom
 
+
+;get evap time series for each basin and put in spreadsheet like TWS.
+evap=chirps_et
+evap_mon = mean(mean(mean(evap[*,*,*,0:13]*mask432,dimension=1,/nan),dimension=1,/nan), dimension=2,/nan)*86400*30 & help, evap_mon
+et_mon = mean(mean(mean(et[*,*,*,0:13]*mask432,dimension=1,/nan),dimension=1,/nan), dimension=2) & help, et_mon
+;alexi_mon = mean(mean(mean(eacube01*mask432,dimension=1,/nan),dimension=1,/nan), dimension=2) & help, alexi_mon
+
 evap_ts = reform(mean(mean(evap*mask432,dimension=1,/nan),dimension=1,/nan)*86400*30, nmos*nyrs) & help, evap_ts
 et_ts = reform(mean(mean(et*mask432,dimension=1,/nan),dimension=1,/nan), nmos*nyrs) & help, et_ts
 ;alexi_ts = reform(mean(mean(eacube01*mask432,dimension=1,/nan),dimension=1,/nan), nmos*nyrs) & help, alexi_ts
 et_ts(where(et_ts eq 0)) = !values.f_nan
+
+;;anomalies
+evap_anom = evap_ts-reform(rebin(evap_mon,nmos,nyrs),nmos*nyrs) & help, evap_anom
+et_anom = et_ts-reform(rebin(et_mon,nmos,nyrs),nmos*nyrs) & help, et_anom
+;alexi_anom = alexi_ts-reform(rebin(alexi_mon,12,7),12*7) & help, alexi_anom
+;alexi_anom(where(alexi_anom lt -20)) = !values.f_nan
+
+;;write out time series for basins of interest
+
 
 
 gvf_cum = total(mean(mean(gvf*mask432,dimension=1,/nan),dimension=1,/nan),  /cumulative) & help, gvf_cum
@@ -112,11 +126,7 @@ p1 = plot(evap_ts, 'b', /overplot)
 p1 = plot(et_ts, 'c', /overplot)
 ;p1 = plot(alexi_ts, 'g', /overplot)
 
-;;anomalies
-evap_anom = evap_ts-reform(rebin(evap_mon,nmos,nyrs),nmos*nyrs) & help, evap_anom
-et_anom = et_ts-reform(rebin(et_mon,nmos,nyrs),nmos*nyrs) & help, et_anom
-;alexi_anom = alexi_ts-reform(rebin(alexi_mon,12,7),12*7) & help, alexi_anom
-;alexi_anom(where(alexi_anom lt -20)) = !values.f_nan
+
 
 p1 = plot(evap_ts, 'b', /overplot)
 p1 = plot(et_ts, 'c', /overplot)
@@ -139,9 +149,6 @@ p1.title = 'Rujfiji Basin ET anomalies & rank corr.Noah(blue)|SSEBop(cyan)(0.56)
 p1.title = 'Pangani Basin ET anomalies & rank corr.Noah(blue)|SSEBop(cyan)(0.74)'
 
 p1.title = 'Zambezi Basin ET anomalies & rank corr.Noah(blue)|SSEBop(cyan)(0.72)'
-
-
-
 
 ;;scatter plot of SM01 and ECV
 ifile = file_search('/home/almcnall/IDLplots/Zamb_EVC_SM01.csv')
@@ -268,13 +275,17 @@ cmask(good) = 1
 cmask(other) = !values.f_nan
 
 ;1. readin the rainfall, runoff, et data > climatology from nco, cdo
+; do i have these for southern africa? how about west?
+; it would be nice to have a good workflow for these averages...
 
 data_dir = '/discover/nobackup/almcnall/LIS7runs/LIS7_beta_test/waterbalance/'
 
 .compile /home/almcnall/Scripts/scripts_idl/get_domain01.pro
+.compile /home/almcnall/Scripts/scripts_idl/get_nc.pro
+
 
 startyr = 1982 ;there shouldn't really be anything for 1982? Yr2= 1982, Yr1=1981
-endyr = 2016
+endyr = 2015
 nyrs = endyr-startyr+1
 
 ;; params = [NX, NY, map_ulx, map_lrx, map_uly, map_lry]
@@ -287,7 +298,41 @@ map_lrx = params[3]
 map_uly = params[4]
 map_lry = params[5]
 
+;;try reading in GIOVANNI netcdf files
 ;;;maps the average ratios from the FLDAS_grandmean.nc file (1982-2015)
+ifile = (data_dir+'g4.timeAvgMap.FLDAS_NOAH01_C_EA_M_001_Evap_tavg.19820101-20170131.22E_11S_51E_23N.nc')
+VOI = 'FLDAS_NOAH01_C_EA_M_001_Evap_tavg'
+Evap = get_nc(VOI, ifile)
+evap(where(evap lt 0)) = !values.f_nan
+
+ifile = (data_dir+'g4.timeAvgMap.FLDAS_NOAH01_C_EA_M_001_Rainf_f_tavg.19820101-20170131.22E_11S_51E_23N.nc');g4.timeAvgMap.FLDAS_NOAH01_C_SA_M_001_Evap_tavg.19820101-20170131.6E_37S_54E_6N.nc
+VOI = 'FLDAS_NOAH01_C_EA_M_001_Rainf_f_tavg'
+Precip = get_nc(VOI, ifile)
+precip(where(precip lt 0)) = !values.f_nan
+
+ifile = (data_dir+'g4.timeAvgMap.FLDAS_NOAH01_C_SA_M_001_Evap_tavg.19820101-20170131.6E_37S_54E_6N.nc')
+VOI = 'FLDAS_NOAH01_C_SA_M_001_Evap_tavg'
+evap = get_nc(VOI, ifile)
+evap(where(evap lt 0)) = !values.f_nan
+
+ifile = (data_dir+'g4.timeAvgMap.FLDAS_NOAH01_C_SA_M_001_Rainf_f_tavg.19820101-20170131.6E_37S_54E_6N.nc')
+VOI = 'FLDAS_NOAH01_C_SA_M_001_Rainf_f_tavg'
+Precip = get_nc(VOI, ifile)
+precip(where(precip lt 0)) = !values.f_nan
+
+ifile = (data_dir+'g4.timeAvgMap.FLDAS_NOAH01_C_EA_M_001_Lwnet_tavg.19820101-20170131.22E_11S_51E_23N.nc')
+VOI = 'FLDAS_NOAH01_C_EA_M_001_Lwnet_tavg'
+LW = get_nc(VOI, ifile)
+LW(where(LW eq -9999.00)) = !values.f_nan
+
+ifile = (data_dir+'g4.timeAvgMap.FLDAS_NOAH01_C_EA_M_001_Swnet_tavg.19820101-20170131.22E_11S_51E_23N.nc')
+VOI = 'FLDAS_NOAH01_C_EA_M_001_Swnet_tavg'
+SW = get_nc(VOI, ifile)
+SW(where(SW eq -9999.00)) = !values.f_nan
+
+
+Rnet = SW+LW
+EoverP = evap/precip
 
 ifile = file_search(data_dir+'FLDAS_grandmean.nc') & print, ifile
 VOI = 'EoverP' &$ ;
@@ -313,29 +358,37 @@ VOI = 'Rnet_tavg' &$ ;
 Rnet = get_nc(VOI, ifile)
 Rnet(where(rnet eq -9999))=!values.f_nan
 
-VOI = 'Qh_tavg' &$ ;
-Qh = get_nc(VOI, ifile)
-Qh(where(Qh eq -9999))=!values.f_nan
+Rnet = mean(rnet_annual, dimension=3,/nan)
+Qle = mean(Qle_annual, dimension=3,/nan)
+Qh = mean(Qh_annual, dimension=3,/nan)
+P = mean(rain_annual, dimension=3, /nan)
+ET = mean(evap_annual, dimension=3,/nan)
+delvar, rnet_annual, qle_annual, qh_annual
 
-VOI = 'Qle_tavg' &$ ;
-Qle = get_nc(VOI, ifile)
-Qle(where(Qle eq -9999))=!values.f_nan
-
-VOI = 'Qg_tavg' &$ ;
-Qg = get_nc(VOI, ifile)
-Qg(where(Qg eq -9999))=!values.f_nan
+help, rnet, qle, qh
+;VOI = 'Qh_tavg' &$ ;
+;Qh = get_nc(VOI, ifile)
+;Qh(where(Qh eq -9999))=!values.f_nan
+;
+;VOI = 'Qle_tavg' &$ ;
+;Qle = get_nc(VOI, ifile)
+;Qle(where(Qle eq -9999))=!values.f_nan
+;
+;VOI = 'Qg_tavg' &$ ;
+;Qg = get_nc(VOI, ifile)
+;Qg(where(Qg eq -9999))=!values.f_nan
 
 ;;;what does the corresponding IMAGE plot look like?
 w = window(DIMENSIONS=[600,1000])
 ncolors=10
-p1 = image(RO*86400, image_dimensions=[nx/10,ny/10], $
-  image_location=[map_ulx,map_lry],RGB_TABLE=73, margin = 0.1, layout = [1,3,3], /current)
-rgbind = FIX(FINDGEN(ncolors)*255./(ncolors))  &$  ; set tindex of the colors to be pulled
+p1 = image(ET/P, image_dimensions=[nx/10,ny/10], $
+  image_location=[map_ulx,map_lry],RGB_TABLE=73, margin = 0.1, layout = [1,3,1], /current)
+  rgbind = FIX(FINDGEN(ncolors)*255./(ncolors))  &$  ; set tindex of the colors to be pulled
   rgbdump = p1.rgb_table & rgbdump = CONGRID(rgbdump[*,rgbind],3,256)  &$ ; just rewrites the discrete colorbar
   ;rgbdump[*,255] = [255,255,255] &$ ; set map values of zero to white, you can change the color
   ;rgbdump[*,0] = [255,255,255] &$;[190,190,190] &$
   p1.rgb_table = rgbdump &$ ; reassign the colorbar to the image
-  p1.MAX_VALUE=2 &$
+  p1.MAX_VALUE=1 &$
   p1.min_value=0 &$
   m1 = MAP('Geographic',limit=[map_lry,map_ulx,map_uly,map_lrx], /overplot, horizon_thick=1)
   m1.mapgrid.linestyle = 'none' &$  ; could also use 6 here
@@ -343,9 +396,10 @@ rgbind = FIX(FINDGEN(ncolors)*255./(ncolors))  &$  ; set tindex of the colors to
   m1.mapgrid.font_size = 0
 
   m = MAPCONTINENTS( /COUNTRIES,HIRES=1, THICK=2) &$
-  p1.title = 'Runoff' &$
+  p1.title = 'P' &$
   p1.font_size=12
-  cb = COLORBAR(target=p1,ORIENTATION=1,/BORDER,TAPER=1, THICK=0,font_size=12)
+  ;orientation 0 for west, 1 for east and southern
+  cb = COLORBAR(target=p1,ORIENTATION=0,/BORDER,TAPER=1, THICK=0,font_size=12)
 
 ;read in the delS from each file
 ;delS = FLTARR(NX,NY,nyrs)*!values.f_nan

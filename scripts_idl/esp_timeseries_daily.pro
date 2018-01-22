@@ -1,6 +1,7 @@
 pro ESP_timeseries
 ;read in all historic soil moisture
 ;this one contains ways to plot daily...v2 is just monthly.
+;revisit for SERVIR training
 
 .compile /home/almcnall/Scripts/scripts_idl/get_domain01.pro
 .compile /home/almcnall/Scripts/scripts_idl/get_nc.pro
@@ -10,8 +11,8 @@ pro ESP_timeseries
 rainfall = 'CHIRPS'
 ;if rainfall eq 'RFE2' then startyr = 2001 else startyr = 1982
 
-startyr = 1982
-endyr = 2017
+startyr = 2003
+endyr = 2016
 nyrs = endyr-startyr+1
 
 ;re-do for all months
@@ -31,18 +32,25 @@ map_lrx = params[3]
 map_uly = params[4]
 map_lry = params[5]
 
+;basin masks
+help, rufi_mask, tana_mask
+
+;coordinates for Thika
+;-0.820278, 36.850278
+txind = FLOOR( (36.850 - map_ulx)/ 0.1)
+tyind = FLOOR( (-0.8203 - map_lry) / 0.1)
 
 ;coordinates for Mpala
-;mxind = FLOOR( (36.8701 - map_ulx)/ 0.1)
-;myind = FLOOR( (0.4856 - map_lry) / 0.1)
+mxind = FLOOR( (36.8701 - map_ulx)/ 0.1)
+myind = FLOOR( (0.4856 - map_lry) / 0.1)
 
 ;Haramka Somalia 0.793458, 43.383063
-;mxind = FLOOR( (43.383063 - map_ulx)/ 0.1)
-;myind = FLOOR( (0.793458 - map_lry) / 0.1)
+hxind = FLOOR( (43.383063 - map_ulx)/ 0.1)
+hyind = FLOOR( (0.793458 - map_lry) / 0.1)
 
 ;Bay Region Somalia 2.660781, 43.530140
-mxind = FLOOR( (43.530140 - map_ulx)/ 0.1)
-myind = FLOOR( (2.660781 - map_lry) / 0.1)
+bxind = FLOOR( (43.530140 - map_ulx)/ 0.1)
+byind = FLOOR( (2.660781 - map_lry) / 0.1)
 
 ;;;read in SM01 from readin_FLDAS_noah_sm.pro;;;;;
 ;;;monthly plots;;;;;;;
@@ -61,60 +69,158 @@ p3=plot(SM01[mxind,myind,*,35], thick = 3, 'orange', /overplot, title='2017')
 rundir = '/discover/nobackup/projects/fame/MODEL_RUNS/NOAH_OUTPUT/daily/Noah33_CHIRPS_MERRA2_EA/ESPvanilla/'
 ;then plot Cprelim for this year...daily then monthly
 ;indirP = rundir+'Noah33_CG_ESPV_EA/20170413_CP/SURFACEMODEL/'
-indirP = rundir+'Noah33_CG_ESPV_EA/201708/SURFACEMODEL/'
 
-ingridP = fltarr(nx, ny, 31, 12)*!values.f_nan
-
-;for m = 1,3 do begin &$
-  m = 8
-  y = 2017 &$
-  YYYYMM = STRING(FORMAT='(I4.4,I2.2)',y,m) &$
-  ifile = file_search(strcompress(indirP+YYYYMM+'/LIS_HIST*', /remove_all))  & help, ifile &$ ;28daysx4per day
-  for f = 0, n_elements(ifile)-1 do begin &$
-    VOI = 'SoilMoist_tavg' &$
-    ;VOI = 'Evap_tavg' &$
-
-    ;read in all soil layers
-    SM = get_nc(VOI, ifile[f]) &$
-    ;just keep the top layer
-    SM0_10 = SM[*,*,0] &$
-    ingridP[*,*,f,m-1] = SM0_10 &$
-  endfor &$
-;endfor
-
-;daily CHIRPS-prelim
-;reform to elimate the gap
-jfm = [ reform(ingridP[mxind, myind,0:30,0], 31), reform(ingridP[mxind, myind,0:27,1],28), reform(ingridP[mxind, myind,0:30,2],31) ]
-p1=plot(jfm, thick=3,'red', name = 'Cprelim', /overplot)
-delvar, ingridP
-
-;monthly plots
-Cprelim = mean(ingridP,dimension=3,/nan)
-p1 = plot(Cprelim[mxind,myind,*], 'red', thick=3, name='Cprelim', /overplot)
-;;insert august to the July Chirps-final and the esp-spegetti, or concat to all the ESP plots.
-TS = reform(SM01[mxind,myind,*,35]) & help, TS
-TS[7]= cprelim[mxind, myind, m-1]
-p3=plot(TS, thick = 3, 'orange', /overplot, title='2017')
-
-
-;;;;read in Jan, Feb daily CHIRPS-final, shelpo i can see intial conditions for CPrelim
-;indirF = '/discover/nobackup/projects/fame/MODEL_RUNS/NOAH_OUTPUT/daily/Noah33_CHIRPS_MERRA2_EA/SURFACEMODEL/'
-;ingridF = fltarr(nx, ny, 31, 12)*!values.f_nan
+;;;;;for hindcasts can ignore the CHIRPS prelim step 
+;indirP = rundir+'Noah33_CG_ESPV_EA/201708/SURFACEMODEL/'
 ;
-;for m = 1,3 do begin &$
+;ingridP = fltarr(nx, ny, 31, 12)*!values.f_nan
+;
+;;for m = 1,3 do begin &$
+;  m = 8
 ;  y = 2017 &$
 ;  YYYYMM = STRING(FORMAT='(I4.4,I2.2)',y,m) &$
-;  ifile = file_search(strcompress(indirF+YYYYMM+'/LIS_HIST*', /remove_all))  & help, ifile &$ ;28daysx4per day
+;  ifile = file_search(strcompress(indirP+YYYYMM+'/LIS_HIST*', /remove_all))  & help, ifile &$ ;28daysx4per day
 ;  for f = 0, n_elements(ifile)-1 do begin &$
-;  VOI = 'SoilMoist_tavg' &$
-;  ;read in all soil layers
-;  SM = get_nc(VOI, ifile[f]) &$
-;  ;just keep the top layer
-;  SM0_10 = SM[*,*,0] &$
-;  ingridF[*,*,f,m-1] = SM0_10 &$
-;endfor &$
-;endfor
+;    VOI = 'SoilMoist_tavg' &$
+;    ;VOI = 'Evap_tavg' &$
 ;
+;    ;read in all soil layers
+;    SM = get_nc(VOI, ifile[f]) &$
+;    ;just keep the top layer
+;    SM0_10 = SM[*,*,0] &$
+;    ingridP[*,*,f,m-1] = SM0_10 &$
+;  endfor &$
+;;endfor
+;
+;;daily CHIRPS-prelim
+;;reform to elimate the gap
+;jfm = [ reform(ingridP[mxind, myind,0:30,0], 31), reform(ingridP[mxind, myind,0:27,1],28), reform(ingridP[mxind, myind,0:30,2],31) ]
+;p1=plot(jfm, thick=3,'red', name = 'Cprelim', /overplot)
+;delvar, ingridP
+;
+;;monthly plots
+;Cprelim = mean(ingridP,dimension=3,/nan)
+;p1 = plot(Cprelim[mxind,myind,*], 'red', thick=3, name='Cprelim', /overplot)
+;;;insert august to the July Chirps-final and the esp-spegetti, or concat to all the ESP plots.
+;TS = reform(SM01[mxind,myind,*,35]) & help, TS
+;TS[7]= cprelim[mxind, myind, m-1]
+;p3=plot(TS, thick = 3, 'orange', /overplot, title='2017')
+
+;input file path is like..
+;discover/nobackup/projects/fame/MODEL_RUNS/NOAH_OUTPUT/daily/Noah33_CHIRPS_MERRA2_EA/ESPvanilla/Noah33_CM2_ESPV_EA/
+
+
+;;;;read in Jan, Feb daily CHIRPS-final, so i can see intial conditions for CPrelim
+;indirF = '/discover/nobackup/projects/fame/MODEL_RUNS/NOAH_OUTPUT/daily/Noah33_CHIRPS_MERRA2_EA/SURFACEMODEL/'
+indirF = '/discover/nobackup/projects/fame/MODEL_RUNS/NOAH_OUTPUT/daily/Noah33_CHIRPS_MERRA2_EA/ESPvanilla/Noah33_CM2_ESPV_EA/'
+;ingridF = fltarr(nx, ny, 31, 12,2)*!values.f_nan
+ingridSM = fltarr(nx, ny,200,34)*!values.f_nan
+ingridP = fltarr(nx, ny,200,34)*!values.f_nan
+ingridRO = fltarr(nx, ny,200,34)*!values.f_nan
+ingridE = fltarr(nx, ny,200,34)*!values.f_nan
+
+basinP = fltarr(200,34)*!values.f_nan
+
+;;months for the forecast remain static;;;
+;;eventually we'll loop thru yrs
+for ens = 1982,2015 do begin &$
+  startyr = ens &$;start with 1982 since no data in 1981
+  endyr = ens+1  &$
+  nyrs = endyr-startyr+1 &$
+
+  startmo = 10 &$
+  endmo = 3    &$
+
+  if startmo le endmo then nmos = endmo - startmo +1  $
+  else nmos = endmo - startmo +13 &$
+
+ cnt = 0 &$
+ yr = startyr &$
+  for i = 0,nmos-1 do begin &$
+    y = yr &$
+    m = startmo + i &$
+    if m gt 12 then begin &$
+    m = m-12 &$
+    y = y+1 &$
+  endif &$
+
+    YYYYMM = STRING(FORMAT='(I4.4,I2.2)',y,m) &$
+    fname = indirF+'EXP_SEPT30_DAILY/20120930/'+string(startyr)+'/SURFACEMODEL/'+YYYYMM &$
+    ifile = file_search(strcompress(fname+'/LIS_HIST*', /remove_all)) &$ ;28daysx4per day
+    for f = 0, n_elements(ifile)-1 do begin &$
+      ;read in all soil layers & just keep top
+;      VOI = 'SoilMoist_tavg' &$      
+;      SM = get_nc(VOI, ifile[f]) &$
+;      SM0_10 = SM[*,*,0] &$
+;      ingridSM[*,*, cnt, ens-1982] = SM0_10 &$  
+      
+;      VOI = 'Rainf_f_tavg' &$
+;      P = get_nc(VOI, ifile[f]) &$
+;      P(where(p lt 0))=!values.f_nan &$
+;      ;ingridP[*,*, cnt, ens-1982] = P &$
+;      basinP[cnt,ens-1982] = mean(mean(p*tana_mask,dimension=1,/nan),dimension=1,/nan) &$
+      
+;       VOI = 'Rainf_f_tavg' &$
+;       P = get_nc(VOI, ifile[f]) &$
+;       ingridP[*,*, cnt, ens-1982] = P &$
+;      
+;      VOI = 'Evap_tavg' &$
+;      E = get_nc(VOI, ifile[f]) &$
+;      ingridE[*,*, cnt, ens-1982] = E &$
+;      
+      VOI = 'Qs_tavg' &$
+      Q = get_nc(VOI, ifile[f]) &$
+      
+      VOI = 'Qsb_tavg' &$
+      Qsub = get_nc(VOI, ifile[f]) &$
+      ingridRO[*,*, cnt, ens-1982] = Q+Qsub &$
+     
+     cnt++ &$
+    endfor &$
+  endfor &$
+  print, ens &$
+endfor 
+ingridRO(where(ingridRO lt 0)) = !values.f_nan
+
+;;extract the basin after, it doesnt save time to do it at readin.
+tana_grid = ingridRO*rebin(tana_mask,nx,ny,200,34) & help, tana_grid
+tana_TS = mean(mean(tana_grid,dimension=1,/nan), dimension=1,/nan) & help, tana_ts
+
+rufi_grid = ingridRO*rebin(rufi_mask,nx,ny,200,34) & help, rufi_grid
+rufi_TS = mean(mean(rufi_grid,dimension=1,/nan), dimension=1,/nan) & help, rufi_ts
+
+basinp_cum = total(rufi_TS, 1, /cumulative) & help, basinp_cum
+p1 = plot(basinp_cum[*,0]*86400, /buffer)
+for i = 0,33 do begin &$
+  p1=plot(basinp_cum[*,i]*86400, /buffer, /overplot, thick=1, 'grey') &$
+endfor
+p1=plot(median(basinP_cum[0:179,*]*86400,dimension=2), /buffer,/overplot, thick=3, 'black')
+;p1=plot(mean(basinP_cum*86400,dimension=2), /buffer,/overplot, thick=3, 'blue')
+p1.title = ' ESP cumulative runoff scenarios Rufiji Basin, 2012'
+p1.save,'/home/almcnall/IDLplots/TS_2012_RO_CUM_Rufiji.png'
+
+;write out the mean, 33rd, 50th and 67th percentile, how do i do this?
+;see get_ESP_median.pro  but this is different for days than months..will have to think
+;if they are being written out then you can just count them.
+;i shoudl really get the mean of the Tana Basin...
+
+TS = rufi_ts
+ensemb = transpose(TS*86400) & help, ensemb
+ens_avg = transpose(mean(TS*86400,dimension=2)) & help, ens_avg
+ens_med = transpose(median(TS*86400,dimension=2)) & help, ens_med
+out_arr = [ens_avg,ens_med] & help, out_arr
+
+ofile = '/home/almcnall/IDLplots/20121001_Rufiji_RO_mean_med.csv'
+write_csv, ofile, out_arr
+
+ofile = '/home/almcnall/IDLplots/20121001_Rufiji_RO_ens.csv'
+write_csv,  ofile, ensemb
+
+
+
+
+;;see intial_cond_std.pro for analysis of variance
+
 ;Fjfm = [ reform(ingridF[mxind, myind,0:30,0], 31), reform(ingridF[mxind, myind,0:27,1],28), reform(ingridF[mxind, myind,0:30,2],31) ]
 ;p2=plot(Fjfm, thick=3,'orange', name = 'Cfinal', /overplot)
 ;;monthly plots

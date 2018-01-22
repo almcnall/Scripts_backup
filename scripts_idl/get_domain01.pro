@@ -49,8 +49,8 @@ function get_domain01, domain
     lrx = (180.+ map_lrx)*10.-1
     uly = (50.- map_uly)*10. 
     lry = (50.- map_lry)*10.-1
-    NX = lrx - ulx + 2
-    NY = lry - uly + 2
+    NX = floor(lrx - ulx + 2)
+    NY = floor(lry - uly + 2)
     
     params = [NX, NY, map_ulx, map_lrx, map_uly, map_lry, ulx, lrx, uly, lry]
     return, params

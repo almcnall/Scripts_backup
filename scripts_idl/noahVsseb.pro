@@ -29,8 +29,8 @@ endyr = 2017
 nyrs = endyr-startyr+1
 
 ;re-do for all months
-startmo = 5
-endmo = 7
+startmo = 1
+endmo = 12
 nmos = endmo - startmo+1
 
 ;params = get_domain25('WA')
@@ -118,7 +118,7 @@ Wmask(water)=!values.f_nan
 ;close,1
 
 ;;;;;;;;;;get PON values from PON_MED4SSEB.pro;;;;;;;;;;;;;;
-help, PONe, PONs, PONw, PONe_SSEB
+help, PONe, PONs, PONw, PONe_SSEB, PON
 help, eta
 ;just difference anomalies...rathern than percent of median...
 help, et
@@ -128,15 +128,18 @@ help, PON_evap, PON_et
 ;;;PLOT both and the difference;;;;;; see correlation below...
 ;;;;buffer is a million times faster for this! don't print to screen!;;;;
 ;;;LIKE FIGURE FOR PAPER BUT EA ;;;;;;
-map_ulx = emap_ulx & min_lon = map_ulx
-map_lry = emap_lry & min_lat = map_lry
-map_uly = emap_uly & max_lat = map_uly
-map_lrx = emap_lrx & max_lon = map_lrx
+map_ulx = smap_ulx & min_lon = map_ulx
+map_lry = smap_lry & min_lat = map_lry
+map_uly = smap_uly & max_lat = map_uly
+map_lrx = smap_lrx & max_lon = map_lrx
 mask = emask
 NX = eNX
 NY = eNY
 
 shapefile = '/discover/nobackup/almcnall/GAUL_2013_2012_0.shapefiles/G2013_2012_0.shp'
+
+SSEB = PONe_SSEB[*,*,9,14] 
+NOAH = PON[*,*,9,14] & Help, SSEB, NOAH
 
 ;plots for individual months..used in the Usage notes section (move down)
 month = ['jan', 'feb', 'mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
@@ -154,7 +157,7 @@ CT=COLORTABLE(73) ;keep this so i can change values.
 ;for y = 0,13 do begin &$
 ;tmptr = CONTOUR(PONe_SSEB[*,*,m,y]*mask,$
 ;tmptr = CONTOUR(PON_evap[*,*,14]*mask,$
-  tmptr = CONTOUR(PON_evap*mask,$
+  tmptr = CONTOUR(PONe_SSEB[*,*,9,14],$
   FINDGEN(NX)*(xsize)+ min_lon, FINDGEN(NY)*(ysize)+min_lat, BACKGROUND_COLOR='WHITE', $
   RGB_TABLE=CT, /FILL, ASPECT_RATIO=1, Xstyle=1,Ystyle=1, /overplot, $
   C_VALUE=index, RGB_INDICES=FIX(FINDGEN(ncolors)*255./ncolors)) &$ ;am i using RGB_INDICES here?
@@ -167,11 +170,11 @@ CT=COLORTABLE(73) ;keep this so i can change values.
 ;tmptr.mapgrid.label_position = 0; x1, y1, x2, y2
 cb = colorbar(target=tmptr,ORIENTATION=1,TAPER=1,/BORDER, font_size=12, TITLE='ETa anomaly %', POSITION=[.96,.35,0.99,.75])
 mc = MAPCONTINENTS(shapefile, /COUNTRIES,COLOR=[0,0,0],FILL_BACKGROUND=0,LIMIT=mlim, thick=2)
-tmptr.title = 'Percent of median (2003-2015) May-Sept Outlook 2017 NOAH-ET'
+tmptr.title = 'Percent of median (2003-2015) October 2017 SSEB-ET'
 tmptr.save,'/home/almcnall/IDLplots/NOAHpon_JUL_2017.png'
 
 ;;;;;;plot the difference;;;
-p1 = image((PON_evap[*,*,14]-PON_et[*,*,14])*mask, rgb_table=67, image_dimensions=[nx/10,ny/10], $
+p1 = image(SSEB-NOAH, rgb_table=67, image_dimensions=[nx/10,ny/10], $
 ;p1 = image(PONe[*,*,m,y]-PONe_SSEB[*,*,m,y], rgb_table=67, image_dimensions=[nx/10,ny/10], $
            image_location=[map_ulx,map_lry], /current, margin = 0.1)
   m1 = MAP('Geographic',limit=[map_lry,map_ulx,map_uly,map_lrx], /overplot, horizon_thick=1)
@@ -195,8 +198,8 @@ p1 = image((PON_evap[*,*,14]-PON_et[*,*,14])*mask, rgb_table=67, image_dimension
 ;toc
 
 ;make vectors for correlations
-noahTSe = reform(pone,eNX,eNY, 12*14)
-ssebTSe = reform(eta[*,*,*,0:13],eNX,ENY, 12*14)
+noahTSe = reform(pone[*,*,*,0:13],eNX,eNY, 12*14)
+ssebTSe = reform(pone_sseb[*,*,*,0:13],eNX,ENY, 12*14)
 
 noahTSs = reform(pons,sNX,sNY, 12*14)
 ssebTSs = reform(etas,sNX,sNY, 12*14)
@@ -211,7 +214,7 @@ ssebTSw = reform(ponw_sseb,wNX,wNY, 12*15)
 ;vicTS = reform(ponV,NX,NY, 12*14)
 ;vicTS=vicTS[*,*,0:155]
 
-cormap2e=fltarr(enx,eny)
+cormap2e=fltarr(enx,eny,2)
 cormap2s=fltarr(snx,sny)
 cormap2w=fltarr(wnx,wny)
 
@@ -220,7 +223,7 @@ nx = enx
 ny = eny
 for x = 0, nx-1 do begin &$
   for y = 0,ny-1 do begin &$
-   cormap2e[x,y,*] = correlate(noahTSe[x,y,0:158], ssebTSe[x,y,0:158]) &$
+   cormap2e[x,y,*] = r_correlate(noahTSe[x,y,*], ssebTSe[x,y,*]) &$
 endfor &$
 endfor
 
@@ -280,18 +283,18 @@ phisto = BARPLOT(xbin, pdf,/current, layout=[1,3,2], title='Benin-Noah')
 
 
 ;;;STICK with CONTOUR;;;;;;;
-cormap2 = cormap2w
-map_ulx = wmap_ulx & min_lon = map_ulx
-map_lry = wmap_lry & min_lat = map_lry
-map_uly = wmap_uly & max_lat = map_uly
-map_lrx = wmap_lrx & max_lon = map_lrx
-mask = wmask
-NX = wNX
-NY = wNY
+cormap2 = cormap2e[*,*,0]
+map_ulx = emap_ulx & min_lon = map_ulx
+map_lry = emap_lry & min_lat = map_lry
+map_uly = emap_uly & max_lat = map_uly
+map_lrx = emap_lrx & max_lon = map_lrx
+mask = emask
+NX = eNX
+NY = eNY
 
 shapefile = '/discover/nobackup/almcnall/GAUL_2013_2012_0.shapefiles/G2013_2012_0.shp'
-;w = WINDOW(DIMENSIONS=[700,900]);works for EA 700x900
-w = WINDOW(DIMENSIONS=[1200,500]);works for EA 700x900
+w = WINDOW(DIMENSIONS=[700,900]);works for EA 700x900
+;w = WINDOW(DIMENSIONS=[1200,500]);works for EA 700x900
 
 mlim = [min_lat,min_lon,max_lat,max_lon]
 m1 = MAP('Geographic',LIMIT=mlim,/CURRENT,horizon_thick=1)

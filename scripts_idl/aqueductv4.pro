@@ -10,6 +10,7 @@
 ;05/24/16 write out geoTIffs for Tamuka
 ;06/03/16 add in the other models, switch back to runoff qsub+sb
 ;06/05/16 move read in to a different script.
+;12/04/17 update to include class difference maps and chirps-prelim estiamtes.
 
 .compile /home/almcnall/Scripts/scripts_idl/get_nc.pro
 ;.compile /home/almcnall/Scripts/scripts_idl/nve.pro
@@ -17,19 +18,13 @@
 ;.compile /home/source/mcnally/scripts_idl/get_nc.pro
 
 ;;USE readin_RFE_NOAH_Qs or readin_CHIRPS_NOAH_Qs
-help,RO_CHIRPS01, RO_annual ;,\, RO_RFE01, 
+;;get the runoff, and the chirps prelim...
+
+help,RO_CHIRPS01, RO ; RO_RFE01, 
+ROmm  = RO*86400*30 & help, ROmm
+delvar, RO
+
 ;ofile = '/discover/nobackup/almcnall/LIS7runs/LIS7_beta_test/WaterAvail_SA/EA_NOAH_RO_ANNUAL_294_348_35.bin'
-;openw,1,ofile
-;writeu,1,ro_annual
-;close, 1
-
-;ok now plot the ration of m3/ (ppl/km2)*100
-;previously i had plotted average rather than total (multiply by 12)
-YR = 2015
-CMPP15 = RO_annual[*,*,33]/(pop15FG*10000000000) & print, max(CMPP15, /nan), min(CMPP15, /nan)
-
-p1 = image(cmpp15, rgb_table=72)
-
 
 ;;;;Plot population;;;;;;;
 indir = '/discover/nobackup/almcnall/Africa-POP/'
@@ -37,44 +32,131 @@ indir = '/discover/nobackup/almcnall/Africa-POP/'
 ;POP = read_tiff(indir+'EAfrica_POP_10km.tiff'); /home/sandbox/people/mcnally/Africa-POP/EAfricaYEM_POP_10km.tiff
 
 ;POP = read_tiff(indir+'EAfricaYEM_POP_10km.tiff')
-POP = read_tiff(indir+'SAfrica_POP_10km.tiff')
+;POP = read_tiff(indir+'SAfrica_POP_10km.tiff')
 ;POP = read_tiff(indir+'EAfrica_POP_10km.tiff')
-;POP = read_tiff(indir+'WAfrica_POP_10km.tiff')
-
-
-popmask = pop*!values.f_nan
-rural = where(pop lt 0.05, complement = urban)
-popmask(urban)=1
-
-;add the landmask to the pop mask
-;ifile = file_search('/home/sandbox/people/mcnally/LIS_NETCDF_INPUT/lis_input_wrsi.sa.nc');lis_input_wrsi.wa.mode.nc
-ifile = file_search('/discover/nobackup/almcnall/LIS7runs/LIS7_beta_test/lis_input_wrsi.sa.nc')
-
-fileID = ncdf_open(ifile)
-qsID = ncdf_varid(fileID,'WRSIMASK'); WHC
-ncdf_varget,fileID, qsID, landmask
-NCDF_close, fileID
-landmask(where(landmask gt 0))=1
-landmask(where(landmask eq 0))=!values.f_nan
-
-;popmask=popmask*landmask
+POP = read_tiff(indir+'WAfrica_POP_10km.tiff')
 
 ; compute m3 per capita per month
 ; the cubes needs to be different for RFE and CHIRPS.
 ; This is where rainfall and model bias makes things interesting.
-help, RO_RFE01, RO_CHIRPS01
+help, RO_RFE01, RO_CHIRPS01, espmedian
 
-;pop12 = rebin(pop,NX,NY,nmos) & help, pop12
-
-;popcube82  = rebin(pop,NX,NY,nmos,n_elements(ro_chirps01[0,0,0,*])) & help, popcube82
-;popcube01  = rebin(pop,NX,NY,nmos,n_elements(ro_rfe01[0,0,0,*])) & help, popcube01
+popcube82  = rebin(pop,NX,NY,nmos,nyrs+1) & help, popcube82
+popcube12  = rebin(pop,NX,NY,nmos) & help, popcube12
 
 ;popmaskcube82 = rebin(popmask,NX,NY,nmos,n_elements(ro_chirps01[0,0,0,*])) & help, popmaskcube82
 ;popmaskcube01 = rebin(popmask,NX,NY,nmos,n_elements(ro_rfe01[0,0,0,*])) & help, popmaskcube01
 
-;how much runoff is there every month?
-;help, ROmm
+;;;;deleted and re-added;;;;;
+help, ROmm, popcube82
 ;how much RO per person per month? I guess multiplying by 1000 gets us from mm to m3?
+CMPPcube = (ROmm/popcube82)*1000      & help, CMPPcube
+
+;;what is the baseline using average monthly per mm?
+ROavg = mean(romm, dimension=4, /nan) & help, ROavg
+BWS = (ROavg/popcube12)*1000 & help, BWS
+
+;;from ESP median
+help, espmedian
+ESPmm = ESPmedian*86400*30
+ESPstress = (ESPmm/popcube12)*1000 & help, ESPstress
+
+
+;; hopefull months alighn correctly here...
+;;classify the thresholds so i can make a difference map
+;; If Lt 41 then 1 if 41-82 then 2, if 82-142 then 3 if gt 142 then 4.
+; i should prob save and re-load this...
+BWSclass = BWS * !values.f_nan & help, BWSclass
+BWSclass(where(BWS lt 41)) = 1
+BWSclass(where(BWS ge 41 AND BWS lt 82)) = 2
+BWSclass(where(BWS ge 82 AND BWS lt 142)) = 3
+BWSclass(where(BWS ge 142)) = 4
+
+CMPPclass = CMPPcube * !values.f_nan & help, CMPPclass
+CMPPclass(where(CMPPcube lt 41)) = 1
+CMPPclass(where(CMPPcube ge 41 AND CMPPcube lt 82)) = 2
+CMPPclass(where(CMPPcube ge 82 AND CMPPcube lt 142)) = 3
+CMPPclass(where(CMPPcube ge 142)) = 4
+
+ESPclass = ESPstress * !values.f_nan
+ESPclass(where(ESPstress lt 41)) = 1
+ESPclass(where(ESPstress ge 41 AND ESPstress lt 82)) = 2
+ESPclass(where(ESPstress ge 82 AND ESPstress lt 142)) = 3
+ESPclass(where(ESPstress ge 142)) = 4
+
+diff = CMPPclass[*,*,9,35] - BWSclass[*,*,9] & help, diff
+
+;;;;if not doing forecast, can just read prelim, otherwise use the ESP grid;;;;
+;;get the value for CHIRPS-prelim from read_cprelim.pro
+;help, cprelim ;e.g. there is only valid data in Nov position
+;NovROmm  = cprelim[*,*,10]*86400*30  & help, novromm
+;NovWS = (NovROmm/pop)*1000 & help, NovWS
+;
+;;classify chrips prelim estimate:
+;PreClass = NovWS * !values.f_nan
+;PreClass(where(NovWS lt 41)) = 1
+;PreClass(where(NovWS ge 41 AND CMPPcube lt 82)) = 2
+;PreClass(where(NovWS ge 82 AND CMPPcube lt 142)) = 3
+;PreClass(where(NovWS ge 142)) = 4
+
+;;compute the difference map
+;PreDiff = PreClass - BWSclass[*,*,10] ; and map it with "image below"
+;i think that these need to be shifted by a month...
+;0=Jan1/Dec30
+i=0
+ESPDiff = ESPClass[*,*,i] - BWSClass[*,*,i-1] & help, espdiff
+
+;;compute difference from previous month class & map it 
+;MonDiff = PreClass - CMPPclass[*,*,9,35] & help, mondiff
+MonDiff = CMPPclass[*,*,9,35] - CMPPclass[*,*,8,35] & help, mondiff
+
+
+;;for reference what is the typical change from Oct to November
+AvgDiff = BWSclass[*,*,9] - BWSclass[*,*,8] & help, avgDiff
+
+;;Aaaand, departure from normal change...
+DiffDiff = MonDiff-AvgDiff & help, DiffDiff
+
+
+;time series for Podor 16.617 & -15.033
+help, mask ;from podor_mask.pro
+mask12 = rebin(mask, nx, ny, nmos) & help,mask12
+pBWS = mean(mean(BWS*mask12, dimension=1,/nan), dimension=1,/nan) & help, pBWS
+pESP = mean(mean(ESPstress*mask12, dimension=1,/nan), dimension=1,/nan) & help, pESP
+p2017 = mean(mean(CMPPcube[*,*,*,35]*mask12, dimension=1,/nan), dimension=1,/nan) & help, p2017
+dec312016 =  mean(mean(CMPPcube[*,*,11,34]*mask12, dimension=1,/nan), dimension=1,/nan) & help, dec312016
+;print these out so that they can be alighned correctly...with last-day/first-day problem
+print, transpose(pBWS)
+print, transpose(pESP)
+print, dec312016 
+transpose(p2017)
+
+;;am i using the correct months for diff??? I mgiht be one off.
+;i=0 = ESP Jan1/BWS Dec31
+month = ['jan', 'feb', 'mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+for i = 0, 11 do begin &$
+  print, i &$
+  p1 = image(ESPClass[*,*,i] - BWSClass[*,*,i-1], rgb_table=70, image_dimensions=[nx/10,ny/10], $
+    image_location=[map_ulx,map_lry], margin = 0.1, /BUFFER) &$
+  m1 = MAP('Geographic',limit=[map_lry,map_ulx,map_uly,map_lrx], /overplot, horizon_thick=1) &$
+  m1.mapgrid.linestyle = 6 & m1.mapgrid.label_position = 0 &$
+  mc = MAPCONTINENTS(/COUNTRIES,COLOR=[0,0,0],FILL_BACKGROUND=0,LIMIT=mlim) &$
+  cb = colorbar(target=p1,ORIENTATION=1,TAPER=1,/BORDER, font_size=12, POSITION=[.96,.35,0.99,.75]) &$
+  p1.title = 'water stress anomaly (by class)' &$
+  p1.max_value = 3 &$
+  p1.save,'/home/almcnall/IDLplots/WA_esp_waterstress_anom_'+month[i]+'.png', RESOLUTION=300 &$
+  delvar, p1 &$
+endfor
+
+
+
+
+;what is the average per person per month (show 12 months)
+
+;take the ratio of the observed CMPP to the average CMPP,
+monRO = mean(ROmm,dimension=4,/nan) & help, monRO
+monCMPP  = (monRO/pop12)*1000      & help, monCMPP
+;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;CMPPcube01 = (RO_RFE01/popcube01)     & help, CMPPcube01
 CMPPcube82 = (RO_CHIRPS01/popcube82)     & help, CMPPcube82
@@ -101,35 +183,30 @@ CLASS = ['absolute scarcity ', 'scarcity', 'stress', 'no stress']
 
 ;only use this shapefile when necessary so slow.
 ;shapefile = '/home/code/idl_user_contrib/GAUL_2013_2012_0.shapefiles/G2013_2012_0.shp'
+month = ['feb', 'mar','apr','may','jun','jul','aug','sep','oct','nov','dec', 'jan']
+CLASS = ['absolute scarcity ', 'scarcity', 'stress', 'no stress']
 
-  ncolors = 4
-  RGB_INDICES=[0,41,82,142] ;..these values are nothing like what i had before..
-  ;index = [0,41,82,500,1000];
-  ;RGB_INDICES=[50,125, 250,500, 1000]
-  index = rgb_indices
-  ;make these match with falkenmark
-;w = WINDOW(DIMENSIONS=[700,900])
+ncolors = 4
+RGB_INDICES=[0,41,82,142] ;..these values are nothing like what i had before..
+index = rgb_indices
 ct=colortable(25,/reverse)
+print, i &$
 for i = 0,11 do begin &$
-  print, i &$
-  tmptr = CONTOUR(monCMPP[*,*,i]*popmask,FINDGEN(NX)/10.+map_ulx, FINDGEN(NY)/10.+map_lry, $ ;
-  ;tmptr = CONTOUR(CMPPcube[*,*,0,34]*popmask,FINDGEN(NX)/10.+map_ulx, FINDGEN(NY)/10.+map_lry, $ ;
-  ;tmptr = CONTOUR(ETHcmpp[*,*,i]*EthPOP,FINDGEN(eNX)/10.+map_ulx+10, FINDGEN(eNY)/10.+map_lry+15, $ ;
-    RGB_TABLE=ct, ASPECT_RATIO=1, Xstyle=1,Ystyle=1,$ ;3x256 array
-    /FILL, C_VALUE=index,RGB_INDICES=FIX(FINDGEN(ncolors)*255./ncolors), $
-    TITLE=month[i],layout=[4,3,i+1], /CURRENT, /BUFFER)  &$
-   ; TITLE='Jan',/BUFFER)  &$
+  tmptr = CONTOUR(BWS[*,*,i],FINDGEN(NX)/10.+map_ulx, FINDGEN(NY)/10.+map_lry, $ 
+  RGB_TABLE=ct, ASPECT_RATIO=1, Xstyle=1,Ystyle=1,$ ;3x256 array
+  /FILL, C_VALUE=index,RGB_INDICES=FIX(FINDGEN(ncolors)*255./ncolors), $
+  TITLE=month[i],/BUFFER)  &$
   m1 = MAP('Geographic',limit=[map_lry,map_ulx,map_uly,map_lrx], /overplot) &$;
- ; m1 = MAP('Geographic',limit=[map_lry+15,map_ulx+10,map_uly,map_lrx], /overplot) &$;
-  ;mycont = MAPCONTINENTS(shapefile, /COUNTRIES,HIRES=1, thick=2) &$
-    m = MAPCONTINENTS(/COUNTRIES,  COLOR = 'black', THICK=1) &$
-    tmptr.mapgrid.linestyle = 'none'  &$ ; could also use 6 here
-    tmptr.mapgrid.FONT_SIZE = 0 &$
-;cb = colorbar(target=tmptr,ORIENTATION=0,TAPER=1,/BORDER, TITLE='runoff per capita ($m^{3} month^{-1}$)',position=[0.3,0.07,0.7,0.11]) &$
+  m = MAPCONTINENTS(/COUNTRIES,  COLOR = 'black', THICK=1) &$
+  tmptr.mapgrid.linestyle = 'none'  &$ ; could also use 6 here
+  tmptr.mapgrid.FONT_SIZE = 0 &$
+  cb = colorbar(target=tmptr,ORIENTATION=0,TAPER=1,/BORDER, TITLE='runoff per capita ($m^{3} month^{-1}$)',position=[0.3,0.33,0.7,0.34]) &$
+  tmptr.save,'/home/almcnall/IDLplots/basline_waterstress_'+month[i]+'.png', RESOLUTION=300 &$
 endfor
-cb = colorbar(target=tmptr,ORIENTATION=0,TAPER=1,/BORDER, TITLE='runoff per capita ($m^{3} month^{-1}$)',position=[0.3,0.03,0.7,0.04])
-tmptr.save,'/home/almcnall/test3.png'
-close
+
+  close
+  tmptr.erase
+  
 
 ;i think i need to check how pop was computed. pop less than 1 doesn't make for good ratios.
 indata = pop12[*,*,0]
@@ -1113,5 +1190,21 @@ Qsuf0(where(Qsuf0 lt 0)) = !values.f_nan
 Qsub0(where(Qsub0 lt 0)) = !values.f_nan
 
 
+popmask = pop*!values.f_nan
+rural = where(pop lt 0.05, complement = urban)
+popmask(urban)=1
+
+;add the landmask to the pop mask
+;ifile = file_search('/home/sandbox/people/mcnally/LIS_NETCDF_INPUT/lis_input_wrsi.sa.nc');lis_input_wrsi.wa.mode.nc
+ifile = file_search('/discover/nobackup/almcnall/LIS7runs/LIS7_beta_test/lis_input_wrsi.sa.nc')
+
+fileID = ncdf_open(ifile)
+qsID = ncdf_varid(fileID,'WRSIMASK'); WHC
+ncdf_varget,fileID, qsID, landmask
+NCDF_close, fileID
+landmask(where(landmask gt 0))=1
+landmask(where(landmask eq 0))=!values.f_nan
+
+;popmask=popmask*landmask
 
 

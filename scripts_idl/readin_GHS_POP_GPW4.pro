@@ -2,11 +2,48 @@ pro readin_GHS_POP_GPW4
 
 ;12/5/16 readin narcisa's pop data and try to get it on the same grid as NOAH 294x348
 ;08/02/17 revisit to get the orignal GPW4 2000-2017 data. Did I already do this?
+;12/07/17 revisit to read in Kris's data GHS data
 
 .compile /home/almcnall/Scripts/scripts_idl/get_nc.pro
 .compile /home/almcnall/Scripts/scripts_idl/nve.pro
 ;.compile /home/almcnall/Scripts/scripts_idl/mve.pro
 .compile /home/almcnall/Scripts/scripts_idl/get_domain01.pro
+
+;;readin the GHS data for to get population for the basins of interest
+indir = '/discover/nobackup/almcnall/Africa-POP/
+GHS90 = read_tiff(indir+'GHS_POP_1990_DD_agg.tif', GEOTIFF=g_tags)
+GHS00 = read_tiff(indir+'GHS_POP_2000_DD_agg.tif', GEOTIFF=g_tags)
+GHS15 = read_tiff(indir+'GHS_POP_2015_DD_agg.tif', GEOTIFF=g_tags)
+
+GHS90 = reverse(GHS90, 2)
+GHS00 = reverse(GHS00, 2)
+GHS15 = reverse(GHS15, 2)
+
+GHS90(where(GHS90 lt 0)) = !values.f_nan
+GHS00(where(GHS00 lt 0)) = !values.f_nan
+GHS15(where(GHS15 lt 0)) = !values.f_nan
+
+
+p1 = image(GHS90, rgb_table=4, min_value=0,max_value=100000, /buffer)
+p1 = image(rufi_mask, rgb_table=20, min_value=0, /buffer, /overplot)
+c=colorbar()
+p1.save, '/home/almcnall/IDLplots/temp.png' 
+
+POPstack = [ [[GHS90]], [[GHS00]], [[GHS15]] ] & help, popstack
+
+;grab the pop data averaged over the basin:
+help, rufi_mask, lvb_mask
+
+;i dunno what these units are...
+rf = total(total(popstack*rebin(rufi_mask, nx, ny,3),1, /nan), 1, /nan)  & help, rf
+lv = total(total(popstack*rebin(lvb_mask, nx, ny, 3),1, /nan), 1, /nan) & help, lv
+
+p1 = plot(rf, /buffer)
+p1 = plot(lv, /buffer, /overplot, 'b')
+p1.save, '/home/almcnall/IDLplots/temp.png'
+
+;;readin laura's interpolated data starts in 2000...maybe should keep using worldpop
+indir = '/discover/nobackup/almcnall/Africa-POP/LinearInterp2Monthly/'
 
 ;readin the 1975 population file and see whats up 331x350
 data_dir = '/discover/nobackup/almcnall/LIS7runs/LIS7_beta_test/netcdf_popfiles/'
@@ -15,7 +52,6 @@ ifile = file_search(data_dir+'noah_1975pop_0.nc')
 VOI = 'Band1' &$ ;Qsb_tavg
 pop75 = get_nc(VOI, ifile)
 pop75(where(pop75 lt 0)) = !values.f_nan
-
 
 ifile = file_search(data_dir+'noah_1990pop_0.nc')
 VOI = 'Band1' &$ ;Qsb_tavg
@@ -31,6 +67,7 @@ ifile = file_search(data_dir+'noah_2015pop_0.nc')
 VOI = 'Band1' &$ ;Qsb_tavg
 pop15 = get_nc(VOI, ifile)
 pop15(where(pop15 lt 0)) = !values.f_nan
+
   
 ;readin a noah file so i can see how they overlay
 y = 2015
@@ -67,6 +104,14 @@ map_lry = params[5]
 ;what is the best way to interpoloate?
 ;first stack the data
 POPstack = [ [[pop75FG]], [[pop90FG]], [[pop00FG]], [[pop15FG]] ] & help, popstack
+
+;grab the pop data averaged over the basin:
+help, rufi_mask, lvb_mask
+
+;i dunno what these units are...
+rm = total(total(popstack*rebin(rufi_mask, nx, ny,4),1, /nan), 1, /nan)  & help, rm
+lv = total(total(popstack*rebin(lvb_mask, nx, ny, 4),1, /nan), 1, /nan) & help, lv
+
 
 delvar, pop75, pop90, pop00, pop15
 

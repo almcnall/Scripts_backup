@@ -11,12 +11,12 @@ pro readin_FLDAS_NOAH_SM
 rainfall = 'CHIRPS'
 ;if rainfall eq 'RFE2' then startyr = 2001 else startyr = 1982
 
-startyr = 2017
+startyr = 1982
 endyr = 2017
 nyrs = endyr-startyr+1
 
 ;re-do for all months
-startmo = 1
+startmo = 9
 endmo = 12
 nmos = endmo - startmo+1
 
@@ -39,6 +39,7 @@ data_dir = strcompress(indir+'Noah33_CHIRPS_MERRA2_'+domain+'/post/', /remove_al
 if rainfall eq 'CHIRPS' then V = 'C' else V = 'A'
 fname = 'FLDAS_NOAH01_'+V+'_'+domain+'_M.A'
 print, fname
+;ifile = file_search(data_dir+fname+STRING(FORMAT='(I4.4,I2.2,''.001.nc'')',y,m)) &$
 
 ;SMP = FLTARR(NX,NY,nmos,nyrs)*!values.f_nan
 SM01 = FLTARR(NX,NY,nmos,nyrs)*!values.f_nan

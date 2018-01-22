@@ -8,7 +8,7 @@ pro readin_CHIRPRS_NOAH_precip
 ;.compile /home/almcnall/Scripts/scripts_idl/mve.pro
 ;.compile /home/source/mcnally/scripts_idl/get_nc.pro
 
-startyr = 1982 ;start with 1982 since no data in 1981
+startyr = 2003 ;start with 1982 since no data in 1981
 endyr = 2017
 nyrs = endyr-startyr+1
 
@@ -27,8 +27,15 @@ map_lrx = params[3]
 map_uly = params[4]
 map_lry = params[5]
 
-;;;;;;use hymap runoff vs. non-routed;;;;
-data_dir='/discover/nobackup/projects/fame/MODEL_RUNS/NOAH_OUTPUT/daily/Noah33_CHIRPS_MERRA2_EA/post/'
+indir = '/discover/nobackup/projects/fame/MODEL_RUNS/NOAH_OUTPUT/daily/'
+if rainfall eq 'CHIRPS' then $
+  data_dir = strcompress(indir+'Noah33_CHIRPS_MERRA2_'+domain+'/post/', /remove_all) else $
+  data_dir = strcompress(indir+'Noah33_RFE_GDAS_'+domain+'/post/', /remove_all) & print, data_dir
+if rainfall eq 'CHIRPS' then V = 'C' else V = 'A'
+fname = 'FLDAS_NOAH01_'+V+'_'+domain+'_M.A'
+print, fname
+
+;data_dir='/discover/nobackup/projects/fame/MODEL_RUNS/NOAH_OUTPUT/daily/Noah33_CHIRPS_MERRA2_EA/post/'
 ;data_dir='/discover/nobackup/projects/fame/MODEL_RUNS/NOAH_OUTPUT/daily/Noah33_CHIRPS_MERRA2_SA/post/'
 ;data_dir='/discover/nobackup/projects/fame/MODEL_RUNS/NOAH_OUTPUT/daily/Noah33_CHIRPS_MERRA2_WA/post/'
 
@@ -42,8 +49,9 @@ for yr=startyr,endyr do begin &$
   m = m-12 &$
   y = y+1 &$
 endif &$
-  ifile = file_search(data_dir+STRING(FORMAT='(''FLDAS_NOAH01_C_EA_M.A'',I4.4,I2.2,''.001.nc'')',y,m)) &$
-  
+ ; ifile = file_search(data_dir+STRING(FORMAT='(''FLDAS_NOAH01_C_WA_M.A'',I4.4,I2.2,''.001.nc'')',y,m)) &$
+  ifile = file_search(data_dir+fname+STRING(FORMAT='(I4.4,I2.2,''.001.nc'')',y,m)) &$
+
   ;variable of interest
   VOI = 'Rainf_f_tavg' &$ 
   Qs = get_nc(VOI, ifile) &$
@@ -58,3 +66,4 @@ delvar, Qs
 ;i use the mean in cdo but this could be changed to total if desired.
 Rain_annual = mean(Rain, dimension = 3, /nan) & help, rain_annual
 
+delvar, rain
